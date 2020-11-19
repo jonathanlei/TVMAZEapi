@@ -23,7 +23,7 @@ async function getShowsByTerm(term) {
       id: showObj.show.id,
       name : showObj.show.name,
       summary : showObj.show.summary,
-      image : showObj.show.image.original|| MISSINGIMAGE
+      image : (showObj.show.image) ? (showObj.show.image.original) : MISSINGIMAGE
     }
   ) 
   );
@@ -37,7 +37,7 @@ function populateShows(shows) {
 
   for (let show of shows) {
     const $show = $(
-        `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
+      `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img 
               src="${show.image}"
@@ -52,9 +52,17 @@ function populateShows(shows) {
            </div>
          </div>  
        </div>
-      `);
+      `
+    );
 
-    $showsList.append($show);  }
+    $showsList.append($show);
+  }
+  // add event listener so that when pressing episodes button
+  // show the list of episode info below
+  $(".Show-getEpisodes").on("click", async function(evt) {
+    evt.preventDefault();
+    await searchForEpisodesAndDisplay(evt);
+  });
 }
 
 
@@ -78,10 +86,54 @@ $searchForm.on("submit", async function (evt) {
 
 /** Given a show ID, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
+ *      await the res for the episodes of :showId
+ *      parse this data res / map to desired result above
  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(id) {
+  const episodesUrl = `http://api.tvmaze.com/shows/${id}/episodes`;
+  let res = await axios.get(episodesUrl);
 
-/** Write a clear docstring for this function... */
+  return res.data.map( episodesObj => (
+    {
+      id: episodesObj.id,
+      name: episodesObj.name,
+      season: episodesObj.season,
+      number: episodesObj.number
+    }
+  ));
+ }
 
-// function populateEpisodes(episodes) { }
+/** Given an array of episodes info, populate details into #episodesList of DOM
+ * 
+ */
+
+function populateEpisodes(episodes) {
+  const $episodesList = $("#episodesList");
+  // empty the episodes list before adding new episodes of a show
+  $episodesList.empty();
+
+  // loop thru episodes, creating li's for each with the information provided
+  for (let episode of episodes) {
+    let $newEpItem = $(`<li data-episode-id="${episode.id}">${episode.name} (season ${episode.season}, number ${episode.number})</li>`);
+    $episodesList.append($newEpItem);
+  }
+
+  // reveal #episodesData
+  $("#episodesArea").show();
+ }
+
+ /** Handle searching of episodes by the current show id and displaying on DOM
+  *   episode details
+  */
+
+  async function searchForEpisodesAndDisplay(evt) {
+    // const showId = $(evt.target).parentElement.parentElement.parentElement.getAttribute("data-show-id");
+    const showId = evt.target.closest(".Show").getAttribute("data-show-id");
+    const episodes = await getEpisodesOfShow(showId);
+
+    populateEpisodes(episodes);
+  }
+
+
+  
